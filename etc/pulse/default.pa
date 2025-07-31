@@ -1,4 +1,5 @@
-load-module module-native-protocol-unix auth-anonymous=1
-load-module module-null-sink sink_name=output_sink sink_properties=device.description="DockerSink"
-set-default-sink output_sink
-set-default-source output_sink.monitor
+#!/usr/bin/pulseaudio -nF
+.nofail
+load-module module-native-protocol-unix socket=/tmp/pulseaudio.socket auth-anonymous=1
+load-module module-null-sink sink_name=default
+set-default-sink default

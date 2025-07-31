@@ -1,33 +1,45 @@
-# Use minimal Ubuntu 24.04 base image
+# FILE: Dockerfile
+
 FROM ubuntu:24.04
 
-# Install runtime dependencies only (no dev tools)
+# Install runtime deps
 RUN apt update && apt install -y \
+  # Core X and OpenGL
   libx11-6 \
   libxext6 \
   libxrandr2 \
   libxinerama1 \
   libxss1 \
   libxi6 \
-  libasound2t64 \
-  pulseaudio \
-  pulseaudio-utils \
-  libpipewire-0.3-0 \
-  libpulse0 \
   libgl1 \
   libegl1 \
   libudev1 \
+  xvfb \
+  libfreetype6 \
+  libxkbcommon0 \
   libwayland-client0 \
   libwayland-egl1 \
   libwayland-cursor0 \
-  libxkbcommon0 \
-  libfreetype6 \
+  # Audio: Pulse + PipeWire + ALSA base
+  libasound2t64 \
+  libpulse0 \
+  libpipewire-0.3-0 \
+  # Audio Streaming Support
+  gstreamer1.0-tools \
+  gstreamer1.0-plugins-base \
+  gstreamer1.0-plugins-good \
+  gstreamer1.0-plugins-bad \
+  gstreamer1.0-plugins-ugly \
+  gstreamer1.0-pulseaudio \
+  daemontools \
+  ucspi-tcp \
+  # Media + UI utils
+  fonts-dejavu-core \
   libsdl2-2.0-0 \
   libavcodec60 \
   libavformat60 \
   libavdevice60 \
   libswscale7 \
-  fonts-dejavu-core \
   libqt6core6 \
   libqt6gui6 \
   libqt6widgets6 \
@@ -38,33 +50,36 @@ RUN apt update && apt install -y \
   libsixel1 \
   nvidia-cg-toolkit \
   libv4l-0 \
-  xvfb \
+  # VNC stack
   x11vnc \
   websockify \
   novnc \
   && apt clean && rm -rf /var/lib/apt/lists/*
 
-# Create needed dirs
-RUN mkdir -p /config /saves /assets /tmp/xdg /roms /cores /shaders
+# Create standard dirs early (before file copy for proper context)
+RUN mkdir -p /config /config/pulse /saves /assets /tmp/xdg /roms /cores /shaders /etc/supervisor/conf.d
 
-# Copy resources
+# Pre-generate PulseAudio cookie
+RUN dd if=/dev/urandom bs=256 count=1 of=/config/pulse/cookie
+
+# Copy runtime resources
 COPY startup.sh /startup.sh
 COPY retroarch /retroarch
 COPY cores /cores
 COPY roms /roms
-COPY shaders /shaders
 COPY etc /etc
+COPY webaudio.js /webaudio.js
 
+# Permissions
 RUN chmod +x /startup.sh
 
-RUN sed -i 's/^;* *user *=.*/; user = root/' /etc/pulse/daemon.conf
-
-# Runtime env (minimal now)
-ENV DISPLAY=:0
+# Set runtime environment
+ENV DISPLAY=:99
 ENV XDG_CONFIG_HOME=/config
 ENV RETROARCH_CONFIG_DIR=/config
 ENV RETROARCH_ASSETS_DIR=/assets
+ENV PULSE_SERVER=unix:/tmp/pulseaudio.socket
+ENV HOME=/root
 
-# Run everything as root (PulseAudio system mode requires it)
-
+#startup script to use server config/save logic
 ENTRYPOINT ["/startup.sh"]
