@@ -54,15 +54,25 @@ echo "Starting x11vnc and websockify (for noVNC)..."
 x11vnc -display :99 -nopw -listen localhost -xkb -forever &
 websockify --web=/usr/share/novnc 52300 localhost:5900 &
 
-# Wait for VNC client
-sleep 20
+echo "Waiting for VNC client to connect..."
+while true; do
+  CLIENTS=$(netstat -an | grep ":5900" | grep ESTABLISHED | wc -l)
+  if [ "$CLIENTS" -gt 0 ]; then
+    echo "VNC client connected!"
+    break
+  fi
+  sleep 1
+done
+
+echo "🔍 Watching for VNC client to disconnect..."
+# Wait until all VNC clients disconnect
 while true; do
   CLIENTS=$(netstat -an | grep ":5900" | grep ESTABLISHED | wc -l)
   if [ "$CLIENTS" -eq 0 ]; then
-    echo "No active VNC clients, shutting down..."
+    echo "VNC client disconnected. Cleaning up..."
     break
   fi
-  sleep 15
+  sleep 5
 done
 
 # Cleanup
